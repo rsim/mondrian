@@ -506,7 +506,9 @@ public class SqlStatement {
    */
   public ResultSet getWrappedResultSet() {
     return (ResultSet) Proxy.newProxyInstance(
-      null,
+      // PATCH: Fix for MONDRIAN-2660. When null was used with Java 11 then this failed with IllegalArgumentException
+      // java.sql.ResultSet referenced from a method is not visible from class loader
+      ResultSet.class.getClassLoader(),
       new Class<?>[] { ResultSet.class },
       new MyDelegatingInvocationHandler( this ) );
   }
