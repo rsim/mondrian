@@ -164,7 +164,9 @@ public class OracleDialect extends JdbcDialectImpl {
                 // NUMBER(38, 0) is conventionally used in
                 // Oracle for integers of unspecified precision, so let's be
                 // bold and assume that they can fit into an int.
-                type = SqlStatement.Type.INT;
+                // PATCH: Better use long instead of int
+                // type = SqlStatement.Type.INT;
+                type = SqlStatement.Type.LONG;
             } else if (scale == 0 && precision <= 9) {
                 // An int (up to 2^31 = 2.1B) can hold any NUMBER(10, 0) value
                 // (up to 10^9 = 1B).
