@@ -159,7 +159,9 @@ public class OracleDialect extends JdbcDialectImpl {
                 // data loss will occur.
                 type = SqlStatement.Type.OBJECT;
             } else if (scale == -127 && precision ==0) {
-                type = SqlStatement.Type.INT;
+                // PATCH: Better use long instead of int
+                // type = SqlStatement.Type.INT;
+                type = SqlStatement.Type.LONG;
             } else if (scale == 0 && (precision == 38 || precision == 0)) {
                 // NUMBER(38, 0) is conventionally used in
                 // Oracle for integers of unspecified precision, so let's be
