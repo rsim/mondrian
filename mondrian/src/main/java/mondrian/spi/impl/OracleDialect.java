@@ -159,16 +159,12 @@ public class OracleDialect extends JdbcDialectImpl {
                 // data loss will occur.
                 type = SqlStatement.Type.OBJECT;
             } else if (scale == -127 && precision ==0) {
-                // PATCH: MONDRIAN-2701 Better use long instead of int
-                // type = SqlStatement.Type.INT;
-                type = SqlStatement.Type.LONG;
+                type = SqlStatement.Type.INT;
             } else if (scale == 0 && (precision == 38 || precision == 0)) {
                 // NUMBER(38, 0) is conventionally used in
                 // Oracle for integers of unspecified precision, so let's be
                 // bold and assume that they can fit into an int.
-                // PATCH: MONDRIAN-2701 Better use long instead of int
-                // type = SqlStatement.Type.INT;
-                type = SqlStatement.Type.LONG;
+                type = SqlStatement.Type.INT;
             } else if (scale == 0 && precision <= 9) {
                 // An int (up to 2^31 = 2.1B) can hold any NUMBER(10, 0) value
                 // (up to 10^9 = 1B).
