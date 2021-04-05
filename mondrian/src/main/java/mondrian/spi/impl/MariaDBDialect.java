@@ -45,4 +45,16 @@ public class MariaDBDialect extends MySqlDialect {
       return productName;
   }
 
+  // PATCH: MariaDB ColumnStore does not support selecting columns that are not in group by
+  @Override
+  protected boolean deduceSupportsSelectNotInGroupBy(Connection connection) throws SQLException {
+      return false;
+  }
+
+  // PATCH: MariaDB ColumnStore does not support compound count distinct, see https://jira.mariadb.org/browse/MCOL-3738
+  @Override
+  public boolean allowsCompoundCountDistinct() {
+      return false;
+  }
+
 }
