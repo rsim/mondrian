@@ -39,7 +39,8 @@ public class MySqlDialect extends JdbcDialectImpl {
                     // Infobright looks a lot like MySQL. If this is an
                     // Infobright connection, yield to the Infobright dialect.
                     return super.acceptsConnection(connection)
-                        && !isInfobright(connection.getMetaData());
+                        && !isInfobright(connection.getMetaData())
+                        && !isSingleStore(connection.getMetaData());
                 } catch (SQLException e) {
                     throw Util.newError(
                         e, "Error while instantiating dialect");
@@ -101,11 +102,56 @@ public class MySqlDialect extends JdbcDialectImpl {
         }
     }
 
+    /**
+     * Detects whether this database is SingleStore (previously MemSQL).
+     *
+     * <p>SingleStore uses the MySQL or MariaDB driver and appears to be a MySQL instance.
+     * The only difference is the presence of the MemSQL engine.
+     *
+     * @param databaseMetaData Database metadata
+     *
+     * @return Whether this is SingleStore
+     */
+    public static boolean isSingleStore(
+        DatabaseMetaData databaseMetaData)
+    {
+        Statement statement = null;
+        try {
+            String productVersion =
+                databaseMetaData.getDatabaseProductVersion();
+            // SingleStore simulates MySQL version 5.5.58
+            if (productVersion.equals("5.5.58")) {
+                statement = databaseMetaData.getConnection().createStatement();
+                final ResultSet resultSet =
+                    statement.executeQuery(
+                        "select * from INFORMATION_SCHEMA.engines where ENGINE in ('MemSQL')");
+                if (resultSet.next()) {
+                    return true;
+                }
+            }
+            return false;
+        } catch (SQLException e) {
+            throw Util.newInternal(
+                e,
+                "while running query to detect MemSQL engine");
+        } finally {
+            if (statement != null) {
+                try {
+                    statement.close();
+                } catch (SQLException e) {
+                    // ignore
+                }
+            }
+        }
+    }
+
     @Override
     protected String deduceProductName(DatabaseMetaData databaseMetaData) {
         final String productName = super.deduceProductName(databaseMetaData);
         if (isInfobright(databaseMetaData)) {
             return "MySQL (Infobright)";
+        } else if (isSingleStore(databaseMetaData)) {
+            return "MySQL (SingleStore)";
         }
         return productName;
     }

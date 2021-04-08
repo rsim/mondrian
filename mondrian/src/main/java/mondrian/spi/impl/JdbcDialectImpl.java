@@ -1104,6 +1104,8 @@ public class JdbcDialectImpl implements Dialect {
             return DatabaseProduct.NETEZZA;
         } else if (upperProductName.equals("MYSQL (INFOBRIGHT)")) {
             return DatabaseProduct.INFOBRIGHT;
+        } else if (upperProductName.equals("MYSQL (SINGLESTORE)")) {
+            return DatabaseProduct.SINGLESTORE;
         } else if (upperProductName.equals("MYSQL")) {
             return DatabaseProduct.MYSQL;
         } else if (upperProductName.equals("MONETDB")) {

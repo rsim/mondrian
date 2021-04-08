@@ -851,6 +851,7 @@ public interface Dialect {
         VERTICA,
         VECTORWISE,
         MARIADB,
+        SINGLESTORE,
         PDI,
         GOOGLEBIGQUERY,
         SNOWFLAKE;
