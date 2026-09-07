@@ -226,4 +226,106 @@ describe "Fixed default formatting for fixed-output functions" do
       assert_equal 'mmm dd yyyy', result.formatted_values[0]
     end
   end
+
+  # Parentheses are their own function call - "(x)" resolves to a
+  # ResolvedFunCall wrapping ParenthesesFunDef - so format inference must look
+  # through the wrapper to reach the function that dictates the format.
+  # A redundant pair of parentheses must not change how a member renders.
+  describe "parentheses do not hide the function from format inference" do
+    # A member with a currency format, so a Count that leaks the format of the
+    # counted set is visible. A member with a date format, so a DateDiff that
+    # leaks the format of its argument is visible.
+    def formatted_with_parentheses(expression, depth, format_string: nil)
+      options = format_string ? {format_string: format_string} : {}
+      wrapped = "#{'(' * depth}#{expression}#{')' * depth}"
+      @olap.from('Sales').
+        with_member('[Measures].[Custom]').as(
+          '[Measures].[Unit Sales]', format_string: '$#,##0.0000'
+        ).
+        with_member('[Measures].[Dated]').as(
+          "DateSerial(2020, 12, 15)", format_string: 'dd.mm.yyyy'
+        ).
+        with_member('[Measures].[R]').as(wrapped, options).
+        columns('[Measures].[R]').execute.formatted_values[0]
+    end
+
+    # Every fixed-format strategy, so no route into the mechanism is missed:
+    # the two Count implementations, the JavaFunDef @FixedFormat annotation in
+    # its date, date and time, time and integer variants.
+    {
+      'the Count function form' => [
+        "Count(Filter([Customers].[USA].Children, [Measures].[Custom] > 0))", '3'
+      ],
+      'the Count property form' => [
+        "Filter([Customers].[USA].Children, [Measures].[Custom] > 0).Count", '3'
+      ],
+      'the Count INCLUDEEMPTY form' => [
+        "Count(Filter([Customers].[USA].Children, [Measures].[Custom] > 0), INCLUDEEMPTY)", '3'
+      ],
+      'DateSerial' => ["DateSerial(2020, 12, 15)", 'Dec 15 2020'],
+      'DateValue' => ["DateValue(DateSerial(2020, 12, 15))", 'Dec 15 2020'],
+      'DateAdd' => ["DateAdd('d', 7, DateSerial(2020, 12, 15))", 'Dec 22 2020 00:00:00'],
+      'CDate' => ["CDate(DateSerial(2020, 12, 15))", 'Dec 15 2020 00:00:00'],
+      'TimeSerial' => ["TimeSerial(14, 30, 5)", '14:30:05'],
+      'TimeValue' => ["TimeValue(TimeSerial(14, 30, 5))", '14:30:05'],
+      'DateDiff' => [
+        "DateDiff('d', DateSerial(2020, 12, 1), [Measures].[Dated])", '14'
+      ]
+    }.each do |form, (expression, expected)|
+      # Depth 0 pins the value that the enclosed forms must reproduce. Depth 2
+      # and 3 cover nesting, which the parser keeps as separate calls.
+      (0..3).each do |depth|
+        it "formats #{form} inside #{depth} parentheses as '#{expected}'" do
+          assert_equal expected, formatted_with_parentheses(expression, depth)
+        end
+      end
+    end
+  end
+
+  # The wrapper must be unwrapped only to find the function that dictates the
+  # format. Everything else that parentheses can mean must keep its behaviour.
+  describe "parentheses keep their meaning for every other expression" do
+    def formatted_expression(expression, format_string: nil)
+      options = format_string ? {format_string: format_string} : {}
+      @olap.from('Sales').
+        with_member('[Measures].[Custom]').as(
+          '[Measures].[Unit Sales]', format_string: '$#,##0.0000'
+        ).
+        with_member('[Measures].[R]').as(expression, options).
+        columns('[Measures].[R]').execute.formatted_values[0]
+    end
+
+    it "still inherits the format of a parenthesised member reference" do
+      # No function dictates a format here, so the walk finds [Custom].
+      assert_equal '$266,773.0000', formatted_expression('([Measures].[Custom])')
+    end
+
+    it "reads two parenthesised members as a tuple, not as a wrapped expression" do
+      # TupleFunDef, not ParenthesesFunDef, so the unwrapping never applies.
+      assert_equal '266,773',
+        formatted_expression('([Measures].[Unit Sales], [Time].[1997])')
+    end
+
+    it "does not apply the fixed format when a parenthesised call is an operand" do
+      # The outermost call is '+', so the walk reaches [Custom] as before.
+      assert_equal '$266,776.0000', formatted_expression(
+        "(Count(Filter([Customers].[USA].Children, [Measures].[Custom] > 0))) + [Measures].[Custom]"
+      )
+    end
+
+    it "keeps an explicit format string over a parenthesised fixed format" do
+      assert_equal '003', formatted_expression(
+        "(Count([Customers].[USA].Children))", format_string: '000'
+      )
+    end
+
+    it "propagates the fixed format of a parenthesised Count to a referencing member" do
+      result = @olap.from('Sales').
+        with_member('[Measures].[Cnt]').as("(Count([Customers].[USA].Children))").
+        with_member('[Measures].[Share]').as("[Measures].[Cnt] / 4").
+        columns('[Measures].[Share]').execute
+      assert_equal 0.75, result.values[0]
+      assert_equal '1', result.formatted_values[0]
+    end
+  end
 end
