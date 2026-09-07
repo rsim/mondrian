@@ -592,7 +592,9 @@ defaults, and `#compileCall` compiling each argument to the `Calc` matching
 the Java parameter type. (fork PATCH) Treats the MDX null sentinel as Java
 null, coerces `BigDecimal`→`double` for `double` parameters, and implements
 `FormatAwareFunDef` by reading a `JavaFunDef.FixedFormat` annotation off the
-method, which is how the `Vba` date and time functions carry a fixed format.
+method, which is how the `Vba` date and time functions carry a fixed format, and
+`DateDiff` an integer one (its result is a count, so a date format on an argument
+must not reach it).
 
 **AbstractAggregateFunDef** — base of the aggregate functions: evaluates the
 set argument with non-empty mode off (`FunUtil#evaluateSet` semantics) and

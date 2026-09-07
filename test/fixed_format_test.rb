@@ -85,6 +85,26 @@ describe "Fixed default formatting for fixed-output functions" do
     end
   end
 
+  # DateDiff counts whole intervals between two dates, so it returns a number.
+  # The format of its date arguments must not become the format of that number.
+  describe "DateDiff defaults to an integer format" do
+    it "does not inherit the fixed date format of a date member" do
+      result = @olap.from('Sales').
+        with_member('[Measures].[D]').as("DateSerial(2020, 12, 15)").
+        with_member('[Measures].[Days]').as("DateDiff('d', DateSerial(2020, 12, 1), [Measures].[D])").
+        columns('[Measures].[Days]').execute
+      assert_equal '14', result.formatted_values[0]
+    end
+
+    it "does not inherit an explicit date format of a date member" do
+      result = @olap.from('Sales').
+        with_member('[Measures].[D]').as("DateSerial(2020, 12, 15)", format_string: 'dd.mm.yyyy').
+        with_member('[Measures].[Days]').as("DateDiff('d', DateSerial(2020, 12, 1), [Measures].[D])").
+        columns('[Measures].[Days]').execute
+      assert_equal '14', result.formatted_values[0]
+    end
+  end
+
   describe "DateSerial defaults to a date format" do
     it "formats the result as 'mmm dd yyyy'" do
       result = @olap.from('Sales').

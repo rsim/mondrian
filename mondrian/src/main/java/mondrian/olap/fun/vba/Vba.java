@@ -483,6 +483,9 @@ public class Vba {
     @Description(
         "Returns a Variant (Long) specifying the number of time intervals "
         + "between two specified dates.")
+    // PATCH: DateDiff returns a count of intervals, not a date. Without a
+    // fixed format the count takes the format of a date argument.
+    @FixedFormat(INTEGER_FORMAT_STRING)
     // PATCH: Accept Object dates to support Numeric-typed date expressions.
     public static long dateDiff(String interval, Object date1, Object date2) {
         return _dateDiff(
@@ -496,6 +499,9 @@ public class Vba {
     @Description(
         "Returns a Variant (Long) specifying the number of time intervals "
         + "between two specified dates.")
+    // PATCH: DateDiff returns a count of intervals, not a date. Without a
+    // fixed format the count takes the format of a date argument.
+    @FixedFormat(INTEGER_FORMAT_STRING)
     // PATCH: Accept Object dates to support Numeric-typed date expressions.
     public static long dateDiff(
         String interval, Object date1, Object date2, int firstDayOfWeek)
@@ -511,6 +517,9 @@ public class Vba {
     @Description(
         "Returns a Variant (Long) specifying the number of time intervals "
         + "between two specified dates.")
+    // PATCH: DateDiff returns a count of intervals, not a date. Without a
+    // fixed format the count takes the format of a date argument.
+    @FixedFormat(INTEGER_FORMAT_STRING)
     // PATCH: Accept Object dates to support Numeric-typed date expressions.
     public static long dateDiff(
         String interval, Object date1, Object date2,
