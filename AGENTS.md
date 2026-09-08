@@ -62,6 +62,27 @@ mondrian-olap-java is a fork of the Mondrian OLAP Java engine, maintained to pro
 
 > Note: bare `mvn package` runs the legacy Java test suite, which requires a preloaded FoodMart database. Use `mise package` for a fast test-skipping build, or `mise java_test` to explicitly run the legacy Java tests.
 
+Every JAR records where it came from. `META-INF/MANIFEST.MF` holds `Implementation-Version`, `Source-Revision` (the commit SHA) and `Build-Timestamp`. A local build leaves `Source-Revision` as `unknown` unless you pass `-Dsource.revision=<sha>`.
+
+### Downloading a built JAR
+
+The `Engine JAR` workflow builds every branch and publishes the JAR as an asset of the `engine-dev`
+prerelease. Download a JAR instead of building it, when you know the commit:
+
+```bash
+sha=$(git rev-parse HEAD)
+curl -fL -o "mondrian-olap-java-$sha.jar" \
+  "https://github.com/rsim/mondrian-olap-java/releases/download/engine-dev/mondrian-olap-java-$sha.jar"
+```
+
+The asset name holds the full commit SHA, so a JAR always matches the source that produced it.
+Check `Source-Revision` in the manifest to confirm this. A commit has no asset when its build was
+still running, when it was cancelled by a later push to the same branch, or when the commit was
+never pushed. Build locally in that case.
+
+These assets are for development only. Assets older than 30 days are pruned, so do not depend on
+one for a release. Run the `Prune engine-dev` workflow by hand to clear the release sooner.
+
 ### Making Changes
 
 1. **Bug fixes and enhancements** - Modify Java source files under `mondrian/src/main/java/mondrian/`.
