@@ -116,6 +116,10 @@ describe "Fixed default formatting for fixed-output functions" do
 
   # CDate keeps the time of day of its argument, so unlike DateValue its fixed
   # format holds a time component.
+  #
+  # The three string cases below fail with a default locale that has a
+  # non-Gregorian calendar, such as th_TH. Only three of the 748
+  # available locales have another calendar, so this was deemed acceptable.
   describe "CDate defaults to a date and time format" do
     {
       "CDate(DateSerial(2020, 12, 15))" => 'Dec 15 2020 00:00:00',

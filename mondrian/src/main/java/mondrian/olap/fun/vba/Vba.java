@@ -129,6 +129,12 @@ public class Vba {
     // literally, so "Nov 18, 15" would mean the year 15. With "yy" a
     // two-digit year gets the century window, and a year of any other digit
     // count stays literal.
+    //
+    // The patterns parse as Locale.US, so a string argument of CDate holds a
+    // Gregorian date. The other date functions build and render a date with the
+    // calendar of the default locale. A default locale with another calendar,
+    // such as th_TH, therefore gives a date that the other date functions do not
+    // match. Only the three locales with a non-Gregorian calendar are affected.
     private static final String[] CDATE_PATTERNS = {
         "yy-MM-dd HH:mm:ss",
         "yy-MM-dd",
