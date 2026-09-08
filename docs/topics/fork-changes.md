@@ -158,8 +158,8 @@ deltas.
   depth-first walk (which could pick a numeric measure inside a Filter
   condition), and offers two strategies:
   - **fixed format** (`#getFixedFormatString`) for a function whose result
-    type does not depend on its arguments — `Count` returns an integer, the
-    date functions return a date — returning one of the interface's shared
+    type does not depend on its arguments — `Count` and `DateDiff` return a
+    number, the date functions return a date — returning one of the shared
     `INTEGER_`/`DECIMAL_`/`DATE_`/`TIME_`/`DATE_TIME_FORMAT_STRING` constants,
     which keeps one owner for each literal pattern;
   - **argument-derived** (`#getFormatExpIndex`) for a function whose result

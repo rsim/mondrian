@@ -65,11 +65,11 @@ element classes that `RolapSchema` loading walks), and the CUP-generated
 - **Notes/gotchas**: `Formula#getFormatExp` infers the member's FORMAT_STRING
   from its expression when none is given (stored as `Property.FORMAT_EXP_PARSED`);
   the search honors `FormatAwareFunDef` (fork PATCH), so a function with a fixed
-  result type (`Count`, the date functions) can dictate a literal format, and one
-  whose result type follows its arguments (`Min`/`Max`) can steer which argument's
-  format wins. Only the outermost call of the member's expression is consulted — a
-  fixed format inside a nested call does not override the format its caller would
-  otherwise infer.
+  result type (`Count`, `DateDiff`, the date functions) can dictate a literal
+  format, and one whose result type follows its arguments (`Min`/`Max`) can steer
+  which argument's format wins. Only the outermost call of the member's
+  expression is consulted — a fixed format inside a nested call does not
+  override the format its caller would otherwise infer.
 
 ### Exp / ExpBase
 
