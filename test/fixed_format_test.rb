@@ -88,20 +88,27 @@ describe "Fixed default formatting for fixed-output functions" do
   # DateDiff counts whole intervals between two dates, so it returns a number.
   # The format of its date arguments must not become the format of that number.
   describe "DateDiff defaults to an integer format" do
-    it "does not inherit the fixed date format of a date member" do
-      result = @olap.from('Sales').
-        with_member('[Measures].[D]').as("DateSerial(2020, 12, 15)").
-        with_member('[Measures].[Days]').as("DateDiff('d', DateSerial(2020, 12, 1), [Measures].[D])").
-        columns('[Measures].[Days]').execute
-      assert_equal '14', result.formatted_values[0]
-    end
-
-    it "does not inherit an explicit date format of a date member" do
-      result = @olap.from('Sales').
-        with_member('[Measures].[D]').as("DateSerial(2020, 12, 15)", format_string: 'dd.mm.yyyy').
-        with_member('[Measures].[Days]').as("DateDiff('d', DateSerial(2020, 12, 1), [Measures].[D])").
-        columns('[Measures].[Days]').execute
-      assert_equal '14', result.formatted_values[0]
+    # DateDiff has three overloads and each one carries its own annotation, so
+    # each one needs a case. The 'd' interval ignores the first day of the week
+    # and the first week of the year, and the values below repeat the defaults
+    # of the three-argument form, so all three forms count the same days.
+    {
+      'three arguments' => "DateDiff('d', DateSerial(2020, 12, 1), [Measures].[D])",
+      'four arguments' => "DateDiff('d', DateSerial(2020, 12, 1), [Measures].[D], 1)",
+      'five arguments' => "DateDiff('d', DateSerial(2020, 12, 1), [Measures].[D], 1, 1)"
+    }.each do |form, expression|
+      # The date member takes the fixed date format in the first case and an
+      # explicit format in the second. Neither must reach the count.
+      {'the fixed' => nil, 'an explicit' => 'dd.mm.yyyy'}.each do |source, format_string|
+        it "does not inherit #{source} date format of a date member with #{form}" do
+          options = format_string ? {format_string: format_string} : {}
+          result = @olap.from('Sales').
+            with_member('[Measures].[D]').as("DateSerial(2020, 12, 15)", options).
+            with_member('[Measures].[Days]').as(expression).
+            columns('[Measures].[Days]').execute
+          assert_equal '14', result.formatted_values[0]
+        end
+      end
     end
   end
 
