@@ -53,9 +53,11 @@ describe "Memory monitor message" do
     instance_field.accessible = true
     previous_monitor = instance_field.value(factory)
     instance_field.set(factory, monitor)
-    yield
-  ensure
-    instance_field.set(factory, previous_monitor)
+    begin
+      yield
+    ensure
+      instance_field.set(factory, previous_monitor)
+    end
   end
 
   def memory_limit_error
