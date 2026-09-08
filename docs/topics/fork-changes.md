@@ -168,11 +168,15 @@ deltas.
 
   A non-null fixed format wins, and only the outermost call of the member's
   expression is consulted — a fixed format inside a nested call does not
-  override the format its caller would otherwise infer. `JavaFunDef` reads a `@FixedFormat` annotation
-  on the implementing method to supply the fixed string for the `Vba` date and
-  time functions, and the integer format for `DateDiff`, whose count of
-  intervals must not take the format of a date argument, and `UdfResolver`'s `UdfFunDef` adapter forwards both methods
-  when the wrapped UDF implements the interface.
+  override the format its caller would otherwise infer.
+
+  `JavaFunDef` reads a `@FixedFormat` annotation on the implementing method. The
+  annotation supplies the fixed string for the `Vba` date and time functions. It
+  supplies the integer format for `DateDiff`, whose count of intervals must not
+  take the format of a date argument.
+
+  `UdfResolver`'s `UdfFunDef` adapter forwards both methods when the wrapped UDF
+  implements the interface.
 - **`skipJavaFunDefs`** — `BuiltinFunTable#defineFunctions` reads the
   `mondrian.olap.fun.skipJavaFunDefs` system property (comma-separated
   function names) and skips registering those Vba/Excel `JavaFunDef`s, so a
