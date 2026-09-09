@@ -98,8 +98,10 @@ jobs:
           skipped=0
           while IFS=$'\t' read -r id name created; do
             [ -n "$id" ] || continue
-            # Delete only what the jar workflow created. A prefix strip leaves any other name
-            # unchanged, which never matches a commit, so age alone would remove it.
+            # Delete only what the jar workflow created. The step "Name the JAR after the commit"
+            # in jar.yml builds this name, so a change there must reach this test. A prefix strip
+            # leaves any other name unchanged, which never matches a commit, so age alone would
+            # remove it.
             if [[ ! $name =~ ^mondrian-olap-java-[0-9a-f]{40}\.jar$ ]]; then
               echo "Skipped $name, which the jar workflow did not create"
               skipped=$((skipped + 1))
