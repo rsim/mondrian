@@ -8,18 +8,25 @@ name: Prune development release
 # from each head to the newest ancestor that has one. That keeps the build a reviewer needs,
 # however old the branch is. Age only removes the builds that later pushes superseded.
 #
-# Run this workflow by hand to prune sooner, with a smaller keep_days value. It always keeps the
-# newest build of every branch. To remove every asset, delete the release itself with
-# `gh release delete development`.
+# A person starts every run. There is no schedule, because a delete cannot be undone and this
+# workflow has no run behind it yet. Add a schedule when the deletion list of a dry run looks
+# correct.
+#
+# Run it with dry_run first. A dry run reports the deletion list at the keep_days value that you
+# give, and it deletes nothing. It always keeps the newest build of every branch. To remove every
+# asset, delete the release itself with `gh release delete development`.
 
 on:
-  schedule:
-    - cron: '0 3 * * 0'
   workflow_dispatch:
     inputs:
       keep_days:
         description: 'Keep superseded assets that are newer than this many days. Empty takes the default.'
         required: false
+      dry_run:
+        description: 'Report the deletion list and delete nothing'
+        required: false
+        type: boolean
+        default: false
 
 concurrency:
   # Deleting is not idempotent. A second run would meet an asset that the first run removed, and
@@ -46,9 +53,10 @@ jobs:
       - name: Delete superseded assets
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # The schedule passes no input, and a dispatch can leave the field empty. This fallback
-          # therefore holds the retention policy for both events, and it holds it once.
+          # A dispatch can leave the field empty, so this fallback holds the retention policy, and
+          # it holds it once.
           KEEP_DAYS: ${{ inputs.keep_days || '30' }}
+          DRY_RUN: ${{ inputs.dry_run || false }}
         run: |
           set -euo pipefail
           # Only a 404 means there is nothing to prune. A rate limit or a bad token must fail the
@@ -104,19 +112,30 @@ jobs:
               continue
             fi
             if [ "$(date -u -d "$created" +%s)" -lt "$cutoff" ]; then
-              gh api -X DELETE "repos/$GITHUB_REPOSITORY/releases/assets/$id"
-              echo "Deleted $name (created $created)"
+              if [ "$DRY_RUN" = 'true' ]; then
+                echo "Would delete $name (created $created)"
+              else
+                gh api -X DELETE "repos/$GITHUB_REPOSITORY/releases/assets/$id"
+                echo "Deleted $name (created $created)"
+              fi
               deleted=$((deleted + 1))
             else
               kept_recent=$((kept_recent + 1))
             fi
           done < <(echo "$release" | jq -r '.assets[] | [.id, .name, .created_at] | @tsv')
+          if [ "$DRY_RUN" = 'true' ]; then
+            heading='### Prune development release (dry run)'
+            deleted_label='Would delete'
+          else
+            heading='### Prune development release'
+            deleted_label='Deleted'
+          fi
           {
-            echo "### Prune development release"
+            echo "$heading"
             echo
             echo "| Result | Count |"
             echo "| --- | --- |"
-            echo "| Deleted | $deleted |"
+            echo "| $deleted_label | $deleted |"
             echo "| Kept, newest build of a branch | $kept_branch |"
             echo "| Kept, newer than $KEEP_DAYS days | $kept_recent |"
             echo "| Skipped, not an engine JAR | $skipped |"

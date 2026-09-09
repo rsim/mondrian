@@ -105,9 +105,10 @@ one. The compiled classes are the same when no commit between them touched the b
 `Source-Revision` then names that ancestor and not your checkout, because it always names the
 commit that the build server built.
 
-These assets are for development only. The `Prune development release` workflow deletes a
-superseded asset after 30 days, so do not depend on one for a release. It always keeps the newest
-asset of every branch. Run it by hand with a smaller `keep_days` value to prune sooner.
+These assets are for development only, so do not depend on one for a release. A person runs the
+`Prune development release` workflow by hand, and it then deletes a superseded asset that is older
+than 30 days. It always keeps the newest asset of every branch. Give it `dry_run` to read the
+deletion list without a delete.
 
 ### Making Changes
 
