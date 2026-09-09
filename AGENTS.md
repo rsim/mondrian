@@ -88,6 +88,9 @@ Read it back from a JAR on your disk:
 unzip -p mondrian-olap-java-<sha>.jar META-INF/MANIFEST.MF | grep Source-Revision
 ```
 
+The run page of the workflow also holds the JAR as an artifact for 14 days. That copy needs a
+GitHub token, so use the release asset unless you already work inside the run.
+
 A commit can have no asset. These are the reasons:
 
 - The build still runs, or the build failed.

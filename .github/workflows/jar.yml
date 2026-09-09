@@ -1,13 +1,20 @@
 name: Engine JAR
 
-# Builds the engine JAR for every branch and publishes it as an asset of the development
-# prerelease. A consumer downloads the JAR for one commit instead of building it locally:
+# Builds the engine JAR for every branch and publishes it in two places. Each place serves a
+# different consumer.
 #
-#   https://github.com/rsim/mondrian-olap-java/releases/download/development/mondrian-olap-java-<sha>.jar
+# - An asset of the development prerelease, for anybody outside the run. A release asset of a
+#   public repository downloads without a token. A developer, another repository or a machine
+#   with no GitHub credentials can take it:
 #
-# Assets on a public repository download without a token, unlike workflow artifacts.
-# Each asset carries the full commit SHA in its name, so a moved branch cannot give a consumer
-# a JAR that does not match the source that it uses. The prune_development_release workflow deletes
+#     https://github.com/rsim/mondrian-olap-java/releases/download/development/mondrian-olap-java-<sha>.jar
+#
+# - A workflow artifact, for the run itself. The publish job takes the JAR from it, and a person
+#   who opens the run page takes the same file. An artifact needs a token, so it does not serve a
+#   consumer outside GitHub.
+#
+# Each asset carries the full commit SHA in its name. A moved branch therefore cannot give a
+# consumer a JAR that does not match its source. The prune_development_release workflow deletes
 # old assets.
 
 on:
@@ -30,18 +37,23 @@ concurrency:
   group: jar-${{ github.ref }}
   cancel-in-progress: true
 
-permissions:
-  contents: write
-
 jobs:
-  jar:
+  build:
+    # Runs the Maven build, which executes third-party plugin code. The job therefore holds a
+    # read-only token, and it gives the JAR to the publish job through the artifact.
+    name: Build the JAR
     runs-on: ubuntu-24.04
+    permissions:
+      contents: read
     env:
       JAVA_OPTS: -Xmx2048m
+    outputs:
+      asset: ${{ steps.asset.outputs.asset }}
+      version: ${{ steps.asset.outputs.version }}
     steps:
       - name: Checkout code
-        # The job holds contents: write for the release upload, and gh reads that token from
-        # GH_TOKEN. Keep it out of .git/config, where every Maven plugin could read it.
+        # The build needs no credential. Keep the token out of .git/config, where a Maven plugin
+        # could read it.
         uses: actions/checkout@v4
         with:
           persist-credentials: false
@@ -77,15 +89,32 @@ jobs:
           echo "asset=$asset" >> "$GITHUB_OUTPUT"
           echo "version=$(basename "${jars[0]}" .jar | sed 's/^mondrian-olap-java-//')" >> "$GITHUB_OUTPUT"
       - name: Upload the JAR as a workflow artifact
+        # The transport to the publish job, and the copy that a person takes from the run page.
         uses: actions/upload-artifact@v4
         with:
           name: engine-jar
           path: ${{ steps.asset.outputs.asset }}
           retention-days: 14
+
+  publish:
+    # Holds the write token that the release upload needs. The job checks out nothing and builds
+    # nothing, so no third-party code runs beside that token.
+    name: Publish the JAR
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    env:
+      ASSET: ${{ needs.build.outputs.asset }}
+      VERSION: ${{ needs.build.outputs.version }}
+    steps:
+      - name: Download the JAR from the build job
+        uses: actions/download-artifact@v4
+        with:
+          name: engine-jar
       - name: Publish the JAR to the development release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          ASSET: ${{ steps.asset.outputs.asset }}
           DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
         run: |
           set -euo pipefail
@@ -103,9 +132,6 @@ jobs:
           fi
           gh release upload development "$ASSET" --clobber
       - name: Write the step summary
-        env:
-          ASSET: ${{ steps.asset.outputs.asset }}
-          VERSION: ${{ steps.asset.outputs.version }}
         run: |
           set -euo pipefail
           {
