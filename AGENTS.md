@@ -62,7 +62,12 @@ mondrian-olap-java is a fork of the Mondrian OLAP Java engine, maintained to pro
 
 > Note: bare `mvn package` runs the legacy Java test suite, which requires a preloaded FoodMart database. Use `mise package` for a fast test-skipping build, or `mise java_test` to explicitly run the legacy Java tests.
 
-Every JAR records where it came from. `META-INF/MANIFEST.MF` holds `Implementation-Version`, `Source-Revision` (the commit SHA) and `Build-Timestamp`. A local build leaves `Source-Revision` as `unknown` unless you pass `-Dsource.revision=<sha>`.
+Every JAR carries the identity of its source. `META-INF/MANIFEST.MF` holds
+`Implementation-Version`, `Source-Revision` and `Build-Timestamp`. `Source-Revision` holds the
+commit that the build used, and the build reads it from the `source.revision` Maven property. The
+`Engine JAR` workflow passes `-Dsource.revision="$GITHUB_SHA"`, which is the commit that the build
+server checked out. A local build passes nothing, so `Source-Revision` stays `unknown` unless you
+pass `-Dsource.revision=<sha>` yourself.
 
 ### Downloading a built JAR
 
@@ -75,8 +80,13 @@ curl -fL -o "mondrian-olap-java-$sha.jar" \
   "https://github.com/rsim/mondrian-olap-java/releases/download/development/mondrian-olap-java-$sha.jar"
 ```
 
-The asset name holds the full commit SHA, so a JAR always matches the source that produced it.
-Check `Source-Revision` in the manifest to confirm this.
+The workflow names the asset after the same `$GITHUB_SHA` that it gives to Maven. The file name
+and `Source-Revision` therefore always name one commit, and that commit is the source of the JAR.
+Read it back from a JAR on your disk:
+
+```bash
+unzip -p mondrian-olap-java-<sha>.jar META-INF/MANIFEST.MF | grep Source-Revision
+```
 
 A commit can have no asset. These are the reasons:
 
@@ -88,7 +98,9 @@ A commit can have no asset. These are the reasons:
 - Nobody pushed the commit.
 
 Build the JAR locally in these cases, or take the asset of the nearest ancestor commit that has
-one. The JAR of an ancestor is the same JAR when no commit between them touched the build.
+one. The compiled classes are the same when no commit between them touched the build.
+`Source-Revision` then names that ancestor and not your checkout, because it always names the
+commit that the build server built.
 
 These assets are for development only. The `Prune development release` workflow deletes a
 superseded asset after 30 days, so do not depend on one for a release. It always keeps the newest
