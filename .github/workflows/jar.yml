@@ -84,10 +84,14 @@ jobs:
             echo "::error::Expected one engine JAR in mondrian/target, found ${#jars[@]}"
             exit 1
           fi
+          jar=${jars[0]}
+          version=${jar##*/}
+          version=${version#mondrian-olap-java-}
+          version=${version%.jar}
           asset="mondrian-olap-java-$GITHUB_SHA.jar"
-          cp "${jars[0]}" "$asset"
+          cp "$jar" "$asset"
           echo "asset=$asset" >> "$GITHUB_OUTPUT"
-          echo "version=$(basename "${jars[0]}" .jar | sed 's/^mondrian-olap-java-//')" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
       - name: Upload the JAR as a workflow artifact
         # The transport to the publish job, and the copy that a person takes from the run page.
         uses: actions/upload-artifact@v4
