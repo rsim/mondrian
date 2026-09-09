@@ -126,7 +126,7 @@ jobs:
               --target "$DEFAULT_BRANCH" \
               --prerelease \
               --title 'Development builds' \
-              --notes 'One engine JAR per commit, named after the commit SHA. These builds are for development only. A superseded build is pruned after 30 days. The newest build of every branch is kept.'; then
+              --notes 'One engine JAR per commit, named after the commit SHA. These builds are for development only. The Prune development release workflow deletes a superseded build, and it keeps the newest build of every branch.'; then
               gh release view development >/dev/null
             fi
           fi
