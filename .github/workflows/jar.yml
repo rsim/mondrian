@@ -85,14 +85,15 @@ jobs:
           set -euo pipefail
           if ! gh release view development >/dev/null 2>&1; then
             # The tag only holds the assets, so it points at the default branch and stays there.
-            # Two branches can reach this at the same time. The second create fails, and the
-            # upload below then reports the real problem if the release is still missing.
-            gh release create development \
+            # Two branches can reach this at the same time, and the second create then fails.
+            # Accept that one case only, which the release view proves.
+            if ! gh release create development \
               --target "$DEFAULT_BRANCH" \
               --prerelease \
               --title 'Development builds' \
-              --notes 'One engine JAR per commit, named after the commit SHA. These builds are for development only. A superseded build is pruned after 30 days. The newest build of a branch or of an open pull request is kept.' \
-              || true
+              --notes 'One engine JAR per commit, named after the commit SHA. These builds are for development only. A superseded build is pruned after 30 days. The newest build of every branch is kept.'; then
+              gh release view development >/dev/null
+            fi
           fi
           gh release upload development "$ASSET" --clobber
       - name: Write the step summary

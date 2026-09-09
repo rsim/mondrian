@@ -78,15 +78,21 @@ curl -fL -o "mondrian-olap-java-$sha.jar" \
 The asset name holds the full commit SHA, so a JAR always matches the source that produced it.
 Check `Source-Revision` in the manifest to confirm this.
 
-A commit has no asset in four cases: the build still runs, a later push to the same branch
-cancelled it, the commit changed no Java source and no POM, or the commit was never pushed. Build
-locally in that case, or take the asset of the nearest ancestor commit that has one. The JAR of an
-ancestor is the same JAR when no commit between them touched the build.
+A commit can have no asset. These are the reasons:
+
+- The build still runs, or the build failed.
+- A later push to the same branch cancelled the build.
+- The push held more than one commit. The workflow builds the tip only.
+- The commit changed no file that the `paths` filter of the workflow lists.
+- Somebody pushed the commit to a fork. The asset is then in the release of the fork.
+- Nobody pushed the commit.
+
+Build the JAR locally in these cases, or take the asset of the nearest ancestor commit that has
+one. The JAR of an ancestor is the same JAR when no commit between them touched the build.
 
 These assets are for development only. The `Prune development release` workflow deletes a
 superseded asset after 30 days, so do not depend on one for a release. It always keeps the newest
-asset of every branch and of every open pull request. Run it by hand with a smaller `keep_days`
-value to prune sooner.
+asset of every branch. Run it by hand with a smaller `keep_days` value to prune sooner.
 
 ### Making Changes
 
