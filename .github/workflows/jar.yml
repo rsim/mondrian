@@ -19,7 +19,9 @@ on:
       - 'mondrian/pom.xml'
       - 'mondrian/build.xml'
       - 'mondrian/src/**'
+      - 'mondrian/README.txt'
       - 'lib-repo/**'
+      - 'LICENSE.html'
       - '.github/workflows/jar.yml'
 
 concurrency:
