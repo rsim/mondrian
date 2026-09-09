@@ -40,7 +40,11 @@ jobs:
       JAVA_OPTS: -Xmx2048m
     steps:
       - name: Checkout code
+        # The job holds contents: write for the release upload, and gh reads that token from
+        # GH_TOKEN. Keep it out of .git/config, where every Maven plugin could read it.
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - name: Set JAVA home
         # The POM targets release 8, so any JDK from 11 up produces the same class files.
         # 11 is the version that the build documentation recommends.

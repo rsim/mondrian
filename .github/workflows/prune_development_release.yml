@@ -35,6 +35,8 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          # The job reads local objects only. gh reads its token from GH_TOKEN.
+          persist-credentials: false
       - name: Delete superseded assets
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
