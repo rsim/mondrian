@@ -55,7 +55,7 @@ jobs:
           fi
           shas=$RUNNER_TEMP/asset_shas.txt
           echo "$release" | jq -r '.assets[].name' \
-            | sed -n 's/^mondrian-olap-java-\(.*\)\.jar$/\1/p' | sort -u > "$shas"
+            | sed -n 's/^mondrian-olap-java-\([0-9a-f]\{40\}\)\.jar$/\1/p' | sort -u > "$shas"
           # An asset exists only for a commit that somebody pushed to this repository. A fork
           # pushes to its own repository, so its build is an asset of the release of the fork.
           heads=$(gh api --paginate "repos/$GITHUB_REPOSITORY/branches" --jq '.[].commit.sha')
@@ -77,11 +77,19 @@ jobs:
           deleted=0
           kept_branch=0
           kept_recent=0
+          skipped=0
           while IFS=$'\t' read -r id name created; do
             [ -n "$id" ] || continue
+            # Delete only what the jar workflow created. A prefix strip leaves any other name
+            # unchanged, which never matches a commit, so age alone would remove it.
+            if [[ ! $name =~ ^mondrian-olap-java-[0-9a-f]{40}\.jar$ ]]; then
+              echo "Skipped $name, which the jar workflow did not create"
+              skipped=$((skipped + 1))
+              continue
+            fi
             sha=${name#mondrian-olap-java-}
             sha=${sha%.jar}
-            if echo "$protected" | grep -qx "$sha"; then
+            if echo "$protected" | grep -qxF "$sha"; then
               kept_branch=$((kept_branch + 1))
               continue
             fi
@@ -101,4 +109,5 @@ jobs:
             echo "| Deleted | $deleted |"
             echo "| Kept, newest build of a branch | $kept_branch |"
             echo "| Kept, newer than $KEEP_DAYS days | $kept_recent |"
+            echo "| Skipped, not an engine JAR | $skipped |"
           } >> "$GITHUB_STEP_SUMMARY"
