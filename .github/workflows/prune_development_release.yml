@@ -1,0 +1,79 @@
+name: Prune development release
+
+# Deletes superseded JARs from the development prerelease. The jar workflow adds one asset per
+# commit, so the release grows without a limit.
+#
+# An asset survives while its commit is the head of a branch or of an open pull request. That
+# keeps the newest build of every branch that somebody still works on, however old the branch
+# is. Age only removes the builds that later pushes superseded.
+#
+# Run this workflow by hand to prune sooner, with a smaller keep_days value. It always keeps the
+# branch and pull request heads. To remove every asset, delete the release itself with
+# `gh release delete development`.
+
+on:
+  schedule:
+    - cron: '0 3 * * 0'
+  workflow_dispatch:
+    inputs:
+      keep_days:
+        description: 'Keep superseded assets that are newer than this many days'
+        required: false
+        default: '30'
+
+permissions:
+  contents: write
+  pull-requests: read
+
+jobs:
+  prune:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Delete superseded assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          KEEP_DAYS: ${{ inputs.keep_days || '30' }}
+        run: |
+          set -euo pipefail
+          if ! release=$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/development" 2>/dev/null); then
+            echo "The development release does not exist. Nothing to prune."
+            exit 0
+          fi
+          # A pull request from a fork has no branch in this repository, so collect both.
+          protected=$(
+            {
+              gh api --paginate "repos/$GITHUB_REPOSITORY/branches" --jq '.[].commit.sha'
+              gh pr list --repo "$GITHUB_REPOSITORY" --state open --limit 200 \
+                --json headRefOid --jq '.[].headRefOid'
+            } | sort -u
+          )
+          echo "Protected commits: $(echo "$protected" | grep -c . || true)"
+          cutoff=$(date -u -d "$KEEP_DAYS days ago" +%s)
+          deleted=0
+          kept_head=0
+          kept_recent=0
+          while IFS=$'\t' read -r id name created; do
+            [ -n "$id" ] || continue
+            sha=${name#mondrian-olap-java-}
+            sha=${sha%.jar}
+            if echo "$protected" | grep -qx "$sha"; then
+              kept_head=$((kept_head + 1))
+              continue
+            fi
+            if [ "$(date -u -d "$created" +%s)" -lt "$cutoff" ]; then
+              gh api -X DELETE "repos/$GITHUB_REPOSITORY/releases/assets/$id"
+              echo "Deleted $name (created $created)"
+              deleted=$((deleted + 1))
+            else
+              kept_recent=$((kept_recent + 1))
+            fi
+          done < <(echo "$release" | jq -r '.assets[] | [.id, .name, .created_at] | @tsv')
+          {
+            echo "### Prune development release"
+            echo
+            echo "| Result | Count |"
+            echo "| --- | --- |"
+            echo "| Deleted | $deleted |"
+            echo "| Kept, branch or pull request head | $kept_head |"
+            echo "| Kept, newer than $KEEP_DAYS days | $kept_recent |"
+          } >> "$GITHUB_STEP_SUMMARY"

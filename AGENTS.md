@@ -66,22 +66,27 @@ Every JAR records where it came from. `META-INF/MANIFEST.MF` holds `Implementati
 
 ### Downloading a built JAR
 
-The `Engine JAR` workflow builds every branch and publishes the JAR as an asset of the `engine-dev`
-prerelease. Download a JAR instead of building it, when you know the commit:
+The `Engine JAR` workflow builds every branch and publishes the JAR as an asset of the
+`development` prerelease. Download a JAR instead of building it, when you know the commit:
 
 ```bash
 sha=$(git rev-parse HEAD)
 curl -fL -o "mondrian-olap-java-$sha.jar" \
-  "https://github.com/rsim/mondrian-olap-java/releases/download/engine-dev/mondrian-olap-java-$sha.jar"
+  "https://github.com/rsim/mondrian-olap-java/releases/download/development/mondrian-olap-java-$sha.jar"
 ```
 
 The asset name holds the full commit SHA, so a JAR always matches the source that produced it.
-Check `Source-Revision` in the manifest to confirm this. A commit has no asset when its build was
-still running, when it was cancelled by a later push to the same branch, or when the commit was
-never pushed. Build locally in that case.
+Check `Source-Revision` in the manifest to confirm this.
 
-These assets are for development only. Assets older than 30 days are pruned, so do not depend on
-one for a release. Run the `Prune engine-dev` workflow by hand to clear the release sooner.
+A commit has no asset in four cases: the build still runs, a later push to the same branch
+cancelled it, the commit changed no Java source and no POM, or the commit was never pushed. Build
+locally in that case, or take the asset of the nearest ancestor commit that has one. The JAR of an
+ancestor is the same JAR when no commit between them touched the build.
+
+These assets are for development only. The `Prune development release` workflow deletes a
+superseded asset after 30 days, so do not depend on one for a release. It always keeps the newest
+asset of every branch and of every open pull request. Run it by hand with a smaller `keep_days`
+value to prune sooner.
 
 ### Making Changes
 

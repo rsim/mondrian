@@ -1,13 +1,13 @@
 name: Engine JAR
 
-# Builds the engine JAR for every branch and publishes it as an asset of the engine-dev
+# Builds the engine JAR for every branch and publishes it as an asset of the development
 # prerelease. A consumer downloads the JAR for one commit instead of building it locally:
 #
-#   https://github.com/rsim/mondrian-olap-java/releases/download/engine-dev/mondrian-olap-java-<sha>.jar
+#   https://github.com/rsim/mondrian-olap-java/releases/download/development/mondrian-olap-java-<sha>.jar
 #
 # Assets on a public repository download without a token, unlike workflow artifacts.
 # Each asset carries the full commit SHA in its name, so a moved branch cannot give a consumer
-# a JAR that does not match the source that it uses. The prune_engine_dev workflow deletes
+# a JAR that does not match the source that it uses. The prune_development_release workflow deletes
 # old assets.
 
 on:
@@ -76,22 +76,25 @@ jobs:
           name: engine-jar
           path: ${{ steps.asset.outputs.asset }}
           retention-days: 14
-      - name: Publish the JAR to the engine-dev release
+      - name: Publish the JAR to the development release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ASSET: ${{ steps.asset.outputs.asset }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
         run: |
           set -euo pipefail
-          if ! gh release view engine-dev >/dev/null 2>&1; then
+          if ! gh release view development >/dev/null 2>&1; then
+            # The tag only holds the assets, so it points at the default branch and stays there.
             # Two branches can reach this at the same time. The second create fails, and the
             # upload below then reports the real problem if the release is still missing.
-            gh release create engine-dev \
+            gh release create development \
+              --target "$DEFAULT_BRANCH" \
               --prerelease \
               --title 'Development builds' \
-              --notes 'One engine JAR per commit, named after the commit SHA. These builds are for development only. Assets older than 30 days are pruned.' \
+              --notes 'One engine JAR per commit, named after the commit SHA. These builds are for development only. A superseded build is pruned after 30 days. The newest build of a branch or of an open pull request is kept.' \
               || true
           fi
-          gh release upload engine-dev "$ASSET" --clobber
+          gh release upload development "$ASSET" --clobber
       - name: Write the step summary
         env:
           ASSET: ${{ steps.asset.outputs.asset }}
@@ -112,6 +115,6 @@ jobs:
             echo
             echo '```'
             echo "curl -fL -o $ASSET \\"
-            echo "  ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/releases/download/engine-dev/$ASSET"
+            echo "  ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/releases/download/development/$ASSET"
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
