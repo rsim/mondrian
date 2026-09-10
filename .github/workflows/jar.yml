@@ -5,13 +5,13 @@ name: Engine JAR
 #
 # - An asset of the development prerelease, for anybody outside the run. A release asset of a
 #   public repository downloads without a token. A developer, another repository or a machine
-#   with no GitHub credentials can take it:
+#   with no GitHub credentials can download it:
 #
 #     https://github.com/rsim/mondrian-olap-java/releases/download/development/mondrian-olap-java-<sha>.jar
 #
-# - A workflow artifact, for the run itself. The publish job takes the JAR from it, and a person
-#   who opens the run page takes the same file. An artifact needs a token, so it does not serve a
-#   consumer outside GitHub.
+# - A workflow artifact, for the run itself. The publish job downloads the JAR from it, and a
+#   person who opens the run page downloads the same file. An artifact needs a token, so it does
+#   not serve a consumer outside GitHub.
 #
 # Each asset carries the full commit SHA in its name. A moved branch therefore cannot give a
 # consumer a JAR that does not match its source. The prune_development_release workflow deletes
@@ -91,7 +91,8 @@ jobs:
           echo "asset=$asset" >> "$GITHUB_OUTPUT"
           echo "version=$version" >> "$GITHUB_OUTPUT"
       - name: Upload the JAR as a workflow artifact
-        # The transport to the publish job, and the copy that a person takes from the run page.
+        # The transport to the publish job, and the copy that a person downloads from the run
+        # page.
         uses: actions/upload-artifact@v4
         with:
           name: engine-jar
