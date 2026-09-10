@@ -29,7 +29,7 @@ on:
         default: false
 
 concurrency:
-  # Deleting is not idempotent. A second run would meet an asset that the first run removed, and
+  # A delete is not idempotent. A second run would meet an asset that the first run removed, and
   # the 404 would end the job before it writes the summary. Every run targets the one release, so
   # the group holds no branch name.
   group: prune-development-release
