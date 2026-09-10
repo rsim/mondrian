@@ -299,6 +299,13 @@ schemas can be served concurrently:
 - **`RolapMemberBase`** — the property-map factory produces
   `ConcurrentHashMap`s and the property getters drop `synchronized`; null
   property values are boxed (a `ConcurrentHashMap` cannot store null).
+- **`RolapCube#virtualToBaseMap`** — the virtual-level → base-cube-level
+  cache is a `ConcurrentHashMap` and `findBaseCubeLevel` reads it with a
+  single `get` instead of `containsKey` + `get`. The map is filled lazily by
+  concurrent queries on a shared virtual cube; with a plain `HashMap` a read
+  during another thread's resize could return null for a cached level, which
+  surfaced as a sporadic `NullPointerException` in
+  `RolapStar.Column.COMPARATOR` while building a `ListPredicate`.
 - **`RolapConnectionPool`** — max active pooled connections is derived from
   `MondrianProperties#SegmentCacheManagerNumberSqlThreads` + 10 instead of a
   hard-coded 50, keeping the pool aligned with the SQL executor size.

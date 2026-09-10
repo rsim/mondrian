@@ -34,6 +34,7 @@ import org.olap4j.mdx.IdentifierNode;
 import org.olap4j.mdx.IdentifierSegment;
 
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * <code>RolapCube</code> implements {@link Cube} for a ROLAP database.
@@ -98,8 +99,11 @@ public class RolapCube extends CubeBase {
      */
     private boolean loadInProgress = false;
 
-    private Map<RolapLevel, RolapCubeLevel> virtualToBaseMap =
-        new HashMap<RolapLevel, RolapCubeLevel>();
+    // PATCH: This cache is filled lazily by concurrent queries sharing the
+    // cube, so it must be a concurrent map. A plain HashMap could return
+    // null for an already cached level while another thread was resizing it.
+    private final Map<RolapLevel, RolapCubeLevel> virtualToBaseMap =
+        new ConcurrentHashMap<RolapLevel, RolapCubeLevel>();
 
     final BitKey closureColumnBitKey;
 
@@ -2610,8 +2614,12 @@ public class RolapCube extends CubeBase {
      * @return base cube level if found
      */
     public RolapCubeLevel findBaseCubeLevel(RolapLevel level) {
-        if (virtualToBaseMap.containsKey(level)) {
-            return virtualToBaseMap.get(level);
+        // PATCH: Read the cache with a single get instead of containsKey
+        // followed by get, so a concurrent insert cannot make the lookup
+        // return null for a cached level.
+        RolapCubeLevel cachedLevel = virtualToBaseMap.get(level);
+        if (cachedLevel != null) {
+            return cachedLevel;
         }
         String levelDimName = level.getDimension().getName();
         String levelHierName = level.getHierarchy().getName();
