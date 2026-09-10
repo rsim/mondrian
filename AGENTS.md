@@ -105,10 +105,12 @@ one. The compiled classes are the same when no commit between them touched the b
 `Source-Revision` then names that ancestor and not your checkout, because it always names the
 commit that the build server built.
 
-These assets are for development only, so do not depend on one for a release. A person runs the
-`Prune development release` workflow by hand, and it then deletes a superseded asset that is older
-than 30 days. It always keeps the newest asset of every branch. Give it `dry_run` to read the
-deletion list without a delete.
+These assets are for development only, so do not depend on one for a release. Nothing deletes an
+old asset yet, so the release grows with every build. A person removes an asset by hand:
+
+```bash
+gh release delete-asset development "mondrian-olap-java-<sha>.jar"
+```
 
 ### Making Changes
 

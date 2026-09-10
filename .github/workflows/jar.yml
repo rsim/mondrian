@@ -14,8 +14,8 @@ name: Engine JAR
 #   not serve a consumer outside GitHub.
 #
 # Each asset carries the full commit SHA in its name. A moved branch therefore cannot give a
-# consumer a JAR that does not match its source. The prune_development_release workflow deletes
-# old assets.
+# consumer a JAR that does not match its source. Nothing deletes an old asset yet, so a person
+# removes one by hand.
 
 on:
   push:
@@ -133,7 +133,7 @@ jobs:
               --target "$DEFAULT_BRANCH" \
               --prerelease \
               --title 'Development builds' \
-              --notes 'One engine JAR per commit, named after the commit SHA. These builds are for development only. The Prune development release workflow deletes a superseded build, and it keeps the newest build of every branch.'; then
+              --notes 'One engine JAR per commit, named after the commit SHA. These builds are for development only. Nothing deletes an old build yet. A person removes one by hand.'; then
               gh release view development >/dev/null
             fi
           fi
