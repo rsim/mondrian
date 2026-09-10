@@ -590,11 +590,12 @@ UDF.
 `JavaFunDef.FunctionName`/`.Signature`/`.Description` annotations overriding
 defaults, and `#compileCall` compiling each argument to the `Calc` matching
 the Java parameter type. (fork PATCH) Treats the MDX null sentinel as Java
-null, coerces `BigDecimal`→`double` for `double` parameters, and implements
-`FormatAwareFunDef` by reading a `JavaFunDef.FixedFormat` annotation off the
-method, which is how the `Vba` date and time functions carry a fixed format, and
-`DateDiff` an integer one (its result is a count, so a date format on an argument
-must not reach it).
+null and coerces `BigDecimal`→`double` for `double` parameters. It also
+implements `FormatAwareFunDef` and reads the fixed format string from a
+`JavaFunDef.FixedFormat` annotation on the method. The `Vba` date and time
+functions carry a date or a time format through that annotation. `DateDiff`
+carries an integer format, because its result is a count and the format of a
+date argument must not reach it.
 
 **AbstractAggregateFunDef** — base of the aggregate functions: evaluates the
 set argument with non-empty mode off (`FunUtil#evaluateSet` semantics) and
@@ -716,7 +717,7 @@ result type follows the value expression rather than being fixed.
 |---|---|
 | `SumFunDef` | `Sum(<Set>[, <Numeric Expression>])`. |
 | `AvgFunDef` | `Avg`. |
-| `CountFunDef` | `Count`, with EXCLUDEEMPTY/INCLUDEEMPTY; also the `<Set>.Count` property form. (fork PATCH) Implements `FormatAwareFunDef` with a fixed integer format, so both forms agree. |
+| `CountFunDef` | `Count`, with EXCLUDEEMPTY/INCLUDEEMPTY; also the `<Set>.Count` property form, as the nested `SetPropertyFunDef`. (fork PATCH) Both classes implement `FormatAwareFunDef` and return the shared `INTEGER_FORMAT_STRING`, which is what makes the two forms agree. |
 | `MedianFunDef` | `Median`. |
 | `PercentileFunDef` | `Percentile`. |
 | `StdevFunDef` | `Stdev` (alias `Stddev`) — sample standard deviation. |

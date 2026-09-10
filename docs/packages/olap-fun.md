@@ -181,7 +181,9 @@ compiles each argument to the `Calc` matching the Java parameter type.
 arrives as an `Object`), `JavaFunDef` treats the MDX null sentinel as Java
 null and coerces `BigDecimal`→`double`, and registration honors
 `skipJavaFunDefs` — all cataloged in
-[topics/fork-changes.md](../topics/fork-changes.md) §1.7.
+[topics/fork-changes.md](../topics/fork-changes.md) §1.7. A fourth annotation,
+`JavaFunDef.FixedFormat` **(fork PATCH)**, gives a method a fixed default
+format string, which `JavaFunDef` then supplies through `FormatAwareFunDef`.
 
 **The `sort` subpackage** — `Sorter` is the static sorting toolkit used by
 `Order`, `TopCount`, `Hierarchize`, and member-child ordering:

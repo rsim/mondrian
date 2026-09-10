@@ -177,6 +177,12 @@ deltas.
 
   `UdfResolver`'s `UdfFunDef` adapter forwards both methods when the wrapped UDF
   implements the interface.
+
+  A fixed format is a literal string, so a client that reads the `FORMAT_STRING`
+  cell property over XMLA now sees `#,##0` where it saw the `Standard` macro
+  before. The rendered `FmtValue` stays the same, because the macro expands to
+  that literal. `XmlaCognosTest.ref.xml` records the difference for the one
+  query in the suite that builds a member on `Count`.
 - **`skipJavaFunDefs`** — `BuiltinFunTable#defineFunctions` reads the
   `mondrian.olap.fun.skipJavaFunDefs` system property (comma-separated
   function names) and skips registering those Vba/Excel `JavaFunDef`s, so a
@@ -197,11 +203,14 @@ deltas.
   no-break space before AM and PM), so the same saved MDX expression gave a
   different result, or an error, after a Java upgrade. The locale formats
   stay as a fallback, and they keep the raw string: a Java 20 or later
-  pattern holds the narrow no-break space itself.
+  pattern holds the narrow no-break space itself. The date and time methods
+  also carry the `@FixedFormat` annotation that the `FormatAwareFunDef` entry
+  above describes.
 - **`JavaFunDef`** — argument evaluation treats the MDX null sentinel
   (`nullValue`) like Java null (upstream only checked Java null), and
   coerces `BigDecimal` arguments to `double` when the target method's
-  parameter is `double`.
+  parameter is `double`. It also implements `FormatAwareFunDef` and reads the
+  fixed format string from a `@FixedFormat` annotation on the method.
 - **`CaseMatchFunDef` / `CaseTestFunDef`** — CASE expressions accept generic
   Value-typed branches: return type falls back to the first branch's type,
   Member/Tuple branch values are compiled as scalars, and BigDecimal/Double
