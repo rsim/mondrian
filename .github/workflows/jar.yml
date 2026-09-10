@@ -129,11 +129,22 @@ jobs:
             # The tag only holds the assets, so it points at the default branch and stays there.
             # Two branches can reach this at the same time, and the second create then fails.
             # Accept that one case only, which the release view proves.
+            # The notes hold blank lines, which a --notes argument on one line cannot carry.
+            notes=$RUNNER_TEMP/release_notes.md
+            {
+              echo 'One engine JAR per commit, named after the commit SHA. These builds are for'
+              echo 'development only. A person removes an old build by hand.'
+              echo
+              echo 'GitHub adds the Source code archives from the tag. They are not the source of any'
+              echo 'JAR. Each JAR names its own commit, in the file name and in `Source-Revision`.'
+              echo
+              echo 'TODO: create a Github action that would clean up stale development build artifacts'
+            } > "$notes"
             if ! gh release create development \
               --target "$DEFAULT_BRANCH" \
               --prerelease \
               --title 'Development builds' \
-              --notes 'One engine JAR per commit, named after the commit SHA. These builds are for development only. Nothing deletes an old build yet. A person removes one by hand.'; then
+              --notes-file "$notes"; then
               gh release view development >/dev/null
             fi
           fi
