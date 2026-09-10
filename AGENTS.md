@@ -85,7 +85,7 @@ and `Source-Revision` therefore always name one commit, and that commit is the s
 Read it back from a JAR on your disk:
 
 ```bash
-unzip -p mondrian-olap-java-<sha>.jar META-INF/MANIFEST.MF | grep Source-Revision
+unzip -p "mondrian-olap-java-<sha>.jar" META-INF/MANIFEST.MF | grep Source-Revision
 ```
 
 The run page of the workflow also holds the JAR as an artifact for 14 days. That copy needs a
