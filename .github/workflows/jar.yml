@@ -7,7 +7,7 @@ name: Engine JAR
 #   public repository downloads without a token. A developer, another repository or a machine
 #   with no GitHub credentials can download it:
 #
-#     https://github.com/rsim/mondrian-olap-java/releases/download/development/mondrian-olap-java-<sha>.jar
+#     https://github.com/rsim/mondrian-olap-java/releases/download/development/mondrian-olap-java-<short-sha>.jar
 #
 # - A workflow artifact, for the run itself. The publish job downloads the JAR from it, and a
 #   person who opens the run page downloads the same file. An artifact needs a token, so it does
@@ -87,7 +87,10 @@ jobs:
           version=${jar##*/}
           version=${version#mondrian-olap-java-}
           version=${version%.jar}
-          asset="mondrian-olap-java-$GITHUB_SHA.jar"
+          # GitHub shows the first 7 characters of a commit SHA, and it shows 7 in every
+          # repository. mondrian has no 7 character collision in its 7381 commits. Read the full
+          # SHA from Source-Revision in the manifest.
+          asset="mondrian-olap-java-${GITHUB_SHA:0:7}.jar"
           cp "$jar" "$asset"
           echo "asset=$asset" >> "$GITHUB_OUTPUT"
           echo "version=$version" >> "$GITHUB_OUTPUT"
@@ -132,8 +135,9 @@ jobs:
             # The notes hold blank lines, which a --notes argument on one line cannot carry.
             notes=$RUNNER_TEMP/release_notes.md
             {
-              echo 'One engine JAR per commit, named after the commit SHA. These builds are for'
-              echo 'development only. A person removes an old build by hand.'
+              echo 'One engine JAR per commit, named after the first 7 characters of the commit'
+              echo 'SHA. The manifest of the JAR holds all 40 in Source-Revision. These builds are'
+              echo 'for development only. A person removes an old build by hand.'
               echo
               echo 'GitHub adds the Source code archives from the tag. They are not the source of any'
               echo 'JAR. Each JAR names its own commit, in the file name and in `Source-Revision`.'

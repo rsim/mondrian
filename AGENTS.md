@@ -76,16 +76,19 @@ The `Engine JAR` workflow builds every branch and publishes the JAR as an asset 
 
 ```bash
 sha=$(git rev-parse HEAD)
-curl -fL -o "mondrian-olap-java-$sha.jar" \
-  "https://github.com/rsim/mondrian-olap-java/releases/download/development/mondrian-olap-java-$sha.jar"
+curl -fL -o "mondrian-olap-java-${sha:0:7}.jar" \
+  "https://github.com/rsim/mondrian-olap-java/releases/download/development/mondrian-olap-java-${sha:0:7}.jar"
 ```
 
-The workflow names the asset after the same `$GITHUB_SHA` that it gives to Maven. The file name
-and `Source-Revision` therefore always name one commit, and that commit is the source of the JAR.
-Read it back from a JAR on your disk:
+The file name holds the first 7 characters of the commit, which is the length that GitHub shows in
+its own pages. Cut the name with `${sha:0:7}` and not with `git rev-parse --short`, because git
+chooses that length from the size of the repository and a later checkout can give a different one.
+
+`Source-Revision` in the manifest holds all 40 characters of the same commit. Read it back from a
+JAR on your disk:
 
 ```bash
-unzip -p "mondrian-olap-java-<sha>.jar" META-INF/MANIFEST.MF | grep Source-Revision
+unzip -p "mondrian-olap-java-<short-sha>.jar" META-INF/MANIFEST.MF | grep Source-Revision
 ```
 
 The run page of the workflow also holds the JAR as an artifact for 14 days. That copy needs a
@@ -109,7 +112,7 @@ These assets are for development only, so do not depend on one for a release. No
 old asset yet, so the release grows with every build. A person removes an asset by hand:
 
 ```bash
-gh release delete-asset development "mondrian-olap-java-<sha>.jar"
+gh release delete-asset development "mondrian-olap-java-<short-sha>.jar"
 ```
 
 ### Making Changes
