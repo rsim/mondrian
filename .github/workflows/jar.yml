@@ -13,9 +13,9 @@ name: Engine JAR
 #   person who opens the run page downloads the same file. An artifact needs a token, so it does
 #   not serve a consumer outside GitHub.
 #
-# Each asset carries the full commit SHA in its name. A moved branch therefore cannot give a
-# consumer a JAR that does not match its source. Nothing deletes an old asset yet, so a person
-# removes one by hand.
+# Each asset carries the first 7 characters of the commit SHA in its name, and the manifest of the
+# JAR holds all 40 in Source-Revision. A moved branch therefore cannot give a consumer a JAR that
+# does not match its source. Nothing deletes an old asset yet, so a person removes one by hand.
 
 on:
   push:
@@ -142,7 +142,7 @@ jobs:
               echo 'GitHub adds the Source code archives from the tag. They are not the source of any'
               echo 'JAR. Each JAR names its own commit, in the file name and in `Source-Revision`.'
               echo
-              echo 'TODO: create a Github action that would clean up stale development build artifacts'
+              echo 'TODO: create a GitHub action that would clean up stale development build artifacts'
             } > "$notes"
             if ! gh release create development \
               --target "$DEFAULT_BRANCH" \
