@@ -21,6 +21,7 @@ on:
   push:
     branches:
       - '**'
+    # The JAR packages LICENSE.html and mondrian/README.txt, so a change to either needs a build.
     paths:
       - 'pom.xml'
       - 'mondrian/pom.xml'
