@@ -33,6 +33,10 @@ package mondrian.olap;
  * <p>A non-null {@link #getFixedFormatString()} takes precedence over
  * {@link #getFormatExpIndex(Exp[])}; a function normally implements only one.
  *
+ * <p>The {@code *_FORMAT_STRING} constants below are a published set for the
+ * implementors of this interface. They give one owner to each pattern, so some
+ * of them have no user inside the engine.
+ *
  * <p>Can be implemented by {@link FunDef} implementations directly
  * (e.g., Min/Max), or by {@link mondrian.spi.UserDefinedFunction}
  * implementations — the UDF adapter in UdfResolver delegates automatically.
@@ -77,7 +81,8 @@ public interface FormatAwareFunDef {
      * Format string for a function returning a date with a meaningful time
      * of day.
      */
-    String DATE_TIME_FORMAT_STRING = DATE_FORMAT_STRING + " " + TIME_FORMAT_STRING;
+    String DATE_TIME_FORMAT_STRING =
+        DATE_FORMAT_STRING + " " + TIME_FORMAT_STRING;
 
     /**
      * Returns a fixed format string to apply to the result of this function
@@ -88,6 +93,12 @@ public interface FormatAwareFunDef {
      * function returning {@code "mmm dd yyyy"} or a counting function
      * returning {@code "#,##0"}. A non-null value takes precedence over
      * {@link #getFormatExpIndex(Exp[])}.
+     *
+     * <p>A call whose type is a {@link mondrian.olap.type.DecimalType} never
+     * reaches this method, because {@link Formula} takes the format from the
+     * type first. A function that declares {@link Category#Integer} gets that
+     * type from {@code FunDefBase#castType}, so declare
+     * {@link Category#Numeric} to use a fixed format.
      *
      * @return a literal format string, or {@code null} if not applicable
      */
