@@ -60,7 +60,7 @@ jobs:
         run: |
           set -euo pipefail
           # Only a 404 means there is nothing to prune. A rate limit or a bad token must fail the
-          # job, or a run that prunes nothing looks the same as a run that had nothing to prune.
+          # job. Otherwise a failed run looks the same as a run that had nothing to prune.
           if ! release=$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/development" \
                          2>"$RUNNER_TEMP/gh_error"); then
             if grep -q '(HTTP 404)' "$RUNNER_TEMP/gh_error"; then
