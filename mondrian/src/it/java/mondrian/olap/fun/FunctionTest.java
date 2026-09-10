@@ -3137,6 +3137,12 @@ public class FunctionTest extends FoodMartTestCase {
    * <p>Mondrian's behavior is consistent with MSAS 2K: it returns zeroes.
    * SSAS 2005 returns an error, which can be fixed by reformulating the calculated members.
    *
+   * <p>The zeroes render as {@code 0} and not as {@code .00}, because
+   * {@code Count} gives the calculated member a fixed integer format. The
+   * member states no FORMAT_STRING of its own, so before the fixed format it
+   * took the {@code #,###.00} format of {@code [Store Sales]}, the measure
+   * named in the Filter condition.
+   *
    * @see mondrian.rolap.FastBatchingCellReaderTest#testAggregateDistinctCount()
    */
   public void testMultiselectCalculations() {
