@@ -45,8 +45,6 @@ jobs:
     runs-on: ubuntu-24.04
     permissions:
       contents: read
-    env:
-      JAVA_OPTS: -Xmx2048m
     outputs:
       asset: ${{ steps.asset.outputs.asset }}
       version: ${{ steps.asset.outputs.version }}
