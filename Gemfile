@@ -8,7 +8,7 @@ gem 'minitest', '~> 5.25'
 gem 'minitest-hooks', '~> 1.5'
 gem 'minitest-reporters', '~> 1.7'
 gem 'pry', '~> 0.14.1'
-gem 'rake', '~> 13.3.0'
+gem 'rake', '~> 13.4.2'
 
 if mondrian_olap_path = ENV['MONDRIAN_OLAP_PATH']
   gem 'mondrian-olap', path: mondrian_olap_path, require: false
