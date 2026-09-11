@@ -50,12 +50,35 @@ describe "VBA functions" do
       "expected message to contain '#{expected}', got '#{message}'"
   end
 
-  def time_zone_name
-    java.util.TimeZone.getDefault.getDisplayName
+  # Vba.java caches DateFormatSymbols in a static field at class load, so
+  # MonthName and WeekdayName follow the locale of the machine, and a later
+  # Locale.setDefault cannot change them. The expected names come from the same
+  # symbols, and the test pins the mapping instead of the language.
+  def machine_symbols
+    java.text.DateFormatSymbols.new(@machine_locale)
   end
 
-  def pst?
-    time_zone_name == "America/Los_Angeles" || time_zone_name == "Pacific Standard Time"
+  # Java 17 and later put a narrow no-break space before the meridiem, and the
+  # test compares the text, so the comparison normalizes the separator.
+  def normalize_spaces(text)
+    text.gsub("\u202F", " ").gsub("\u00A0", " ")
+  end
+
+  # The formatted output of a date and of a number follows the default locale
+  # and the default time zone. The Java test takes both from the machine, which
+  # makes the expected value a guess. These tests pin both, so every machine and
+  # every Java version agree on one expected value. America/Los_Angeles is the
+  # zone that the Java test assumed for the partial year case of DateAdd.
+  before(:all) do
+    @machine_locale = Locale.getDefault
+    @machine_time_zone = java.util.TimeZone.getDefault
+    Locale.setDefault(Locale::US)
+    java.util.TimeZone.setDefault(java.util.TimeZone.getTimeZone("America/Los_Angeles"))
+  end
+
+  after(:all) do
+    Locale.setDefault(@machine_locale)
+    java.util.TimeZone.setDefault(@machine_time_zone)
   end
 
   # Conversion functions
@@ -247,14 +270,10 @@ describe "VBA functions" do
     assert_date_equal "2009/04/24 19:10:45", Vba.dateAdd("yyyy", 1, sample)
     assert_date_equal "2006/04/24 19:10:45", Vba.dateAdd("yyyy", -2, sample)
 
-    # partial years interpolate - only test in PST timezone
-    if pst?
-      sample_plus_two_point_five_years = Vba.dateAdd("yyyy", 2.5, sample)
-      date_string = format_date(sample_plus_two_point_five_years)
-      assert(
-        date_string == "2010/10/24 06:40:45" || date_string == "2010/10/24 07:10:45",
-        "Got #{date_string}")
-    end
+    # Partial years interpolate. The Java test runs this case only in the
+    # America/Los_Angeles zone, because the result differs when the start and the
+    # end are not both in daylight saving time. The pinned zone runs it always.
+    assert_date_equal "2010/10/24 07:10:45", Vba.dateAdd("yyyy", 2.5, sample)
 
     assert_date_equal "2009/01/24 19:10:45", Vba.dateAdd("q", 3, sample)
 
@@ -502,24 +521,17 @@ describe "VBA functions" do
 
   # Java: VbaTest#testFormatDateTime
   it "formatDateTime" do
-    # Use SimpleDateFormat to create the date in a JDK-version-independent way
-    sdf = SimpleDateFormat.new("MMMM dd, yyyy h:mm:ss a", Locale::US)
-    date = sdf.parse("October 19, 1962 4:35:47 PM")
-    # The default format output depends on JDK version (Java 11+ adds comma after year)
-    expected_default = DateFormat.getDateTimeInstance.format(date)
-    assert_equal expected_default, Vba.formatDateTime(date)
-    assert_equal expected_default, Vba.formatDateTime(date, 0)
-    expected_long = DateFormat.getDateInstance(DateFormat::LONG).format(date)
-    assert_equal expected_long, Vba.formatDateTime(date, 1)
-    expected_short = DateFormat.getDateInstance(DateFormat::SHORT).format(date)
-    assert_equal expected_short, Vba.formatDateTime(date, 2)
-    # The long time format carries the time zone name, and Java 17 and later put
-    # a narrow no-break space before the meridiem, so the expected value comes
-    # from the same formatter.
-    expected_long_time = DateFormat.getTimeInstance(DateFormat::LONG).format(date)
-    assert_equal expected_long_time, Vba.formatDateTime(date, 3)
-    expected_short_time = DateFormat.getTimeInstance(DateFormat::SHORT).format(date)
-    assert_equal expected_short_time, Vba.formatDateTime(date, 4)
+    date = to_date("1962/10/19 16:35:47")
+    # The medium date and time format gained a comma after the year in Java 9.
+    general_date = ["Oct 19, 1962 4:35:47 PM", "Oct 19, 1962, 4:35:47 PM"]
+    assert_includes general_date, normalize_spaces(Vba.formatDateTime(date))
+    assert_includes general_date, normalize_spaces(Vba.formatDateTime(date, 0))
+    assert_equal "October 19, 1962", Vba.formatDateTime(date, 1)
+    assert_equal "10/19/62", Vba.formatDateTime(date, 2)
+    # The Java test compares a prefix here, because the long time format carries
+    # the zone name. The pinned time zone makes the whole text predictable.
+    assert_equal "4:35:47 PM PDT", normalize_spaces(Vba.formatDateTime(date, 3))
+    assert_equal "4:35 PM", normalize_spaces(Vba.formatDateTime(date, 4))
   end
 
   # Java: VbaTest#testDateValue
@@ -662,37 +674,22 @@ describe "VBA functions" do
     assert_equal "100,000.0%", Vba.formatPercent(1000.0, 1, -1, -1, 1)
   end
 
-  # The locale decides the currency symbol, the position of the symbol and the
-  # separator, so an expected value that concatenates a symbol fails on a
-  # machine with another locale. formatCurrency configures the currency
-  # DecimalFormat of the default locale, and the expected value uses the same
-  # formatter with the same settings.
-  def currency_format(fraction_digits: nil, integer_digits: nil, grouping: nil)
-    format = java.text.NumberFormat.getCurrencyInstance
-    if fraction_digits
-      format.setMaximumFractionDigits(fraction_digits)
-      format.setMinimumFractionDigits(fraction_digits)
-    end
-    format.setMinimumIntegerDigits(integer_digits) if integer_digits
-    format.setGroupingUsed(grouping) unless grouping.nil?
-    format
-  end
-
   # Java: VbaTest#testFormatCurrency
   it "formatCurrency" do
-    assert_equal currency_format.format(1.0), Vba.formatCurrency(1.0)
-    assert_equal currency_format.format(0.0), Vba.formatCurrency(0.0)
-    assert_equal currency_format(fraction_digits: 1).format(1.0), Vba.formatCurrency(1.0, 1)
-    assert_equal currency_format(fraction_digits: 0).format(1.0), Vba.formatCurrency(1.0, 0)
+    assert_equal "$1.00", Vba.formatCurrency(1.0)
+    assert_equal "$0.00", Vba.formatCurrency(0.0)
+    assert_equal "$1.0", Vba.formatCurrency(1.0, 1)
+    assert_equal "$1", Vba.formatCurrency(1.0, 0)
     # A leading digit of 0 drops the zero before the decimal separator.
-    assert_equal currency_format(integer_digits: 0).format(0.10), Vba.formatCurrency(0.10, -1, 0)
-    assert_equal currency_format(integer_digits: 1).format(0.10), Vba.formatCurrency(0.10, -1, -1)
-    # Vba.java does not implement useParensForNegativeNumbers, so the locale
-    # decides the format of a negative amount.
-    assert_equal currency_format(integer_digits: 1).format(-0.10), Vba.formatCurrency(-0.10, -1, -1, 0)
+    assert_equal "$.10", Vba.formatCurrency(0.10, -1, 0)
+    assert_equal "$0.10", Vba.formatCurrency(0.10, -1, -1)
+    # Vba.java does not implement useParensForNegativeNumbers, so the locale data
+    # decides the negative form. Java 8 gives the parentheses of the old JRE data,
+    # and the CLDR data of Java 9 and later gives a minus sign.
+    assert_includes ["($0.10)", "-$0.10"], Vba.formatCurrency(-0.10, -1, -1, 0)
 
-    assert_equal currency_format(grouping: true).format(1000.0), Vba.formatCurrency(1000.0, -1, -1, 0, 0)
-    assert_equal currency_format(grouping: false).format(1000.0), Vba.formatCurrency(1000.0, -1, -1, 0, -1)
+    assert_equal "$1,000.00", Vba.formatCurrency(1000.0, -1, -1, 0, 0)
+    assert_equal "$1000.00", Vba.formatCurrency(1000.0, -1, -1, 0, -1)
   end
 
   # Java: VbaTest#testTypeName
@@ -1049,9 +1046,9 @@ describe "VBA functions" do
 
   # Java: VbaTest#testMonthName
   it "monthName" do
-    assert_equal "January", Vba.monthName(1, false)
-    assert_equal "Jan", Vba.monthName(1, true)
-    assert_equal "Dec", Vba.monthName(12, true)
+    assert_equal machine_symbols.getMonths[0], Vba.monthName(1, false)
+    assert_equal machine_symbols.getShortMonths[0], Vba.monthName(1, true)
+    assert_equal machine_symbols.getShortMonths[11], Vba.monthName(12, true)
     error = assert_raises(java.lang.RuntimeException) { Vba.monthName(0, true) }
     assert_message error, "ArrayIndexOutOfBoundsException"
   end
@@ -1159,34 +1156,33 @@ describe "VBA functions" do
 
   # Java: VbaTest#testWeekdayName
   it "weekdayName" do
+    # DateFormatSymbols indexes a weekday with the Calendar constant, so index 1
+    # is Sunday and index 7 is Saturday.
+    weekdays = machine_symbols.getWeekdays
+    short_weekdays = machine_symbols.getShortWeekdays
+
     # If Sunday (1) is the first day of the week
     # then day 1 is Sunday,
     # then day 2 is Monday,
     # and day 7 is Saturday
-    assert_equal "Sunday", Vba.weekdayName(1, false, 1)
-    assert_equal "Monday", Vba.weekdayName(2, false, 1)
-    assert_equal "Saturday", Vba.weekdayName(7, false, 1)
-    assert_equal "Sat", Vba.weekdayName(7, true, 1)
+    assert_equal weekdays[Calendar::SUNDAY], Vba.weekdayName(1, false, 1)
+    assert_equal weekdays[Calendar::MONDAY], Vba.weekdayName(2, false, 1)
+    assert_equal weekdays[Calendar::SATURDAY], Vba.weekdayName(7, false, 1)
+    assert_equal short_weekdays[Calendar::SATURDAY], Vba.weekdayName(7, true, 1)
 
     # If Monday (2) is the first day of the week
     # then day 1 is Monday,
     # and day 7 is Sunday
-    assert_equal "Monday", Vba.weekdayName(1, false, 2)
-    assert_equal "Sunday", Vba.weekdayName(7, false, 2)
+    assert_equal weekdays[Calendar::MONDAY], Vba.weekdayName(1, false, 2)
+    assert_equal weekdays[Calendar::SUNDAY], Vba.weekdayName(7, false, 2)
 
-    # Use weekday start from locale. Test for the 2 most common.
-    case Calendar.getInstance.getFirstDayOfWeek
-    when Calendar::SUNDAY
-      assert_equal "Sunday", Vba.weekdayName(1, false, 0)
-      assert_equal "Monday", Vba.weekdayName(2, false, 0)
-      assert_equal "Saturday", Vba.weekdayName(7, false, 0)
-      assert_equal "Sat", Vba.weekdayName(7, true, 0)
-    when Calendar::MONDAY
-      assert_equal "Monday", Vba.weekdayName(1, false, 0)
-      assert_equal "Tuesday", Vba.weekdayName(2, false, 0)
-      assert_equal "Sunday", Vba.weekdayName(7, false, 0)
-      assert_equal "Sun", Vba.weekdayName(7, true, 0)
-    end
+    # A first day of 0 takes the first day of the week from the locale, and the
+    # pinned Locale.US starts the week on Sunday.
+    assert_equal Calendar::SUNDAY, Calendar.getInstance.getFirstDayOfWeek
+    assert_equal weekdays[Calendar::SUNDAY], Vba.weekdayName(1, false, 0)
+    assert_equal weekdays[Calendar::MONDAY], Vba.weekdayName(2, false, 0)
+    assert_equal weekdays[Calendar::SATURDAY], Vba.weekdayName(7, false, 0)
+    assert_equal short_weekdays[Calendar::SATURDAY], Vba.weekdayName(7, true, 0)
   end
 
   # Mathematical
