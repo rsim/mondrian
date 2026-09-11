@@ -129,10 +129,16 @@ describe "Excel worksheet functions" do
 
   # Java: ExcelTest#testIntNative
   it "intNative" do
-    assert_equal 5, Vba.intNative(5.1)
-    assert_equal 5, Vba.intNative(5.9)
-    assert_equal(-6, Vba.intNative(-5.9))
-    assert_equal 0, Vba.intNative(0.1)
-    assert_equal 0, Vba.intNative(0)
+    # Vba.intNative is package private, and JRuby binds only the public methods,
+    # so the test reaches it with reflection. The Java test calls it directly,
+    # because the Java test sits in the same package.
+    int_native = Vba.java_class.getDeclaredMethod("intNative", java.lang.Double::TYPE)
+    int_native.setAccessible(true)
+
+    assert_equal 5, int_native.invoke(nil, 5.1.to_java(:double))
+    assert_equal 5, int_native.invoke(nil, 5.9.to_java(:double))
+    assert_equal(-6, int_native.invoke(nil, -5.9.to_java(:double)))
+    assert_equal 0, int_native.invoke(nil, 0.1.to_java(:double))
+    assert_equal 0, int_native.invoke(nil, 0.0.to_java(:double))
   end
 end

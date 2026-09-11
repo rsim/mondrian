@@ -205,21 +205,15 @@ describe "VBA functions" do
     assert_equal date, Vba.cDate(date)
     assert_nil Vba.cDate(nil)
 
-    # cDate internally uses DateFormat.getTimeInstance, getDateTimeInstance, getDateInstance
-    # in that order. The expected results must use the same parsing chain so the test is
-    # JDK-version independent (DateFormat formats changed between Java 8 and Java 11+).
-    assert_equal(
-      DateFormat.getDateInstance.parse("Jan 12, 1952"),
-      Vba.cDate("Jan 12, 1952"))
-    assert_equal(
-      DateFormat.getDateInstance.parse("October 19, 1962"),
-      Vba.cDate("October 19, 1962"))
-    assert_equal(
-      DateFormat.getTimeInstance.parse("4:35:47 PM"),
-      Vba.cDate("4:35:47 PM"))
-    # DateFormat.getDateTimeInstance cannot parse this string on Java 11 and later,
-    # and cDate parses it with the fixed CDATE_PATTERNS, so the expected value uses
-    # a fixed pattern too. The time component must survive.
+    # The Java test builds each expected value with a DateFormat instance of the
+    # default locale. cDate parses with the fixed CDATE_PATTERNS instead, and a
+    # DateFormat pattern changes between Java versions: Java 17 and later put a
+    # narrow no-break space before the meridiem, and Java 21 then fails to parse
+    # "4:35:47 PM". Every expected value therefore uses a fixed pattern.
+    assert_equal to_date("1952/01/12"), Vba.cDate("Jan 12, 1952")
+    assert_equal to_date("1962/10/19"), Vba.cDate("October 19, 1962")
+    # A time without a date lands on the epoch date.
+    assert_equal to_date("1970/01/01 16:35:47"), Vba.cDate("4:35:47 PM")
     assert_equal to_date("1962/10/19 16:35:47"), Vba.cDate("October 19, 1962 4:35:47 PM")
 
     error = assert_raises(InvalidArgumentException) { Vba.cDate("Jan, 1952") }
@@ -519,10 +513,11 @@ describe "VBA functions" do
     assert_equal expected_long, Vba.formatDateTime(date, 1)
     expected_short = DateFormat.getDateInstance(DateFormat::SHORT).format(date)
     assert_equal expected_short, Vba.formatDateTime(date, 2)
-    datestr = Vba.formatDateTime(date, 3)
-    refute_nil datestr
-    # skip the timezone so this test runs everywhere
-    assert datestr.start_with?("4:35:47 PM"), "Expected to start with '4:35:47 PM', got '#{datestr}'"
+    # The long time format carries the time zone name, and Java 17 and later put
+    # a narrow no-break space before the meridiem, so the expected value comes
+    # from the same formatter.
+    expected_long_time = DateFormat.getTimeInstance(DateFormat::LONG).format(date)
+    assert_equal expected_long_time, Vba.formatDateTime(date, 3)
     expected_short_time = DateFormat.getTimeInstance(DateFormat::SHORT).format(date)
     assert_equal expected_short_time, Vba.formatDateTime(date, 4)
   end
@@ -667,26 +662,37 @@ describe "VBA functions" do
     assert_equal "100,000.0%", Vba.formatPercent(1000.0, 1, -1, -1, 1)
   end
 
+  # The locale decides the currency symbol, the position of the symbol and the
+  # separator, so an expected value that concatenates a symbol fails on a
+  # machine with another locale. formatCurrency configures the currency
+  # DecimalFormat of the default locale, and the expected value uses the same
+  # formatter with the same settings.
+  def currency_format(fraction_digits: nil, integer_digits: nil, grouping: nil)
+    format = java.text.NumberFormat.getCurrencyInstance
+    if fraction_digits
+      format.setMaximumFractionDigits(fraction_digits)
+      format.setMinimumFractionDigits(fraction_digits)
+    end
+    format.setMinimumIntegerDigits(integer_digits) if integer_digits
+    format.setGroupingUsed(grouping) unless grouping.nil?
+    format
+  end
+
   # Java: VbaTest#testFormatCurrency
   it "formatCurrency" do
-    # formatCurrency uses NumberFormat.getCurrencyInstance() which is locale-dependent.
-    # Build expected strings using the same formatter to be locale-independent.
-    fmt = java.text.NumberFormat.getCurrencyInstance
-    cs = fmt.getCurrency.getSymbol
+    assert_equal currency_format.format(1.0), Vba.formatCurrency(1.0)
+    assert_equal currency_format.format(0.0), Vba.formatCurrency(0.0)
+    assert_equal currency_format(fraction_digits: 1).format(1.0), Vba.formatCurrency(1.0, 1)
+    assert_equal currency_format(fraction_digits: 0).format(1.0), Vba.formatCurrency(1.0, 0)
+    # A leading digit of 0 drops the zero before the decimal separator.
+    assert_equal currency_format(integer_digits: 0).format(0.10), Vba.formatCurrency(0.10, -1, 0)
+    assert_equal currency_format(integer_digits: 1).format(0.10), Vba.formatCurrency(0.10, -1, -1)
+    # Vba.java does not implement useParensForNegativeNumbers, so the locale
+    # decides the format of a negative amount.
+    assert_equal currency_format(integer_digits: 1).format(-0.10), Vba.formatCurrency(-0.10, -1, -1, 0)
 
-    assert_equal "#{cs}1.00", Vba.formatCurrency(1.0)
-    assert_equal "#{cs}0.00", Vba.formatCurrency(0.0)
-    assert_equal "#{cs}1.0", Vba.formatCurrency(1.0, 1)
-    assert_equal "#{cs}1", Vba.formatCurrency(1.0, 0)
-    assert_equal "#{cs}.10", Vba.formatCurrency(0.10, -1, 0)
-    assert_equal "#{cs}0.10", Vba.formatCurrency(0.10, -1, -1)
-    # useParensForNegativeNumbers is not implemented (see Vba.java todo comment),
-    # so the output depends on the locale's default negative currency format.
-    expected_neg = fmt.format(-0.10)
-    assert_equal expected_neg, Vba.formatCurrency(-0.10, -1, -1, 0)
-
-    assert_equal "#{cs}1,000.00", Vba.formatCurrency(1000.0, -1, -1, 0, 0)
-    assert_equal "#{cs}1000.00", Vba.formatCurrency(1000.0, -1, -1, 0, -1)
+    assert_equal currency_format(grouping: true).format(1000.0), Vba.formatCurrency(1000.0, -1, -1, 0, 0)
+    assert_equal currency_format(grouping: false).format(1000.0), Vba.formatCurrency(1000.0, -1, -1, 0, -1)
   end
 
   # Java: VbaTest#testTypeName
